@@ -53,7 +53,7 @@ The following command both runs all the steps of the conan file, and publishes t
 
 ## Add Remote
 
-    $ conan remote add helmesjo "https://api.bintray.com/conan/helmesjo/public-conan"
+    $ conan remote add camposs "https://conan.campar.in.tum.de/api/conan/conan-camposs"
 
 
 ## Conan Recipe License
