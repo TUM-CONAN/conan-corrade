@@ -29,9 +29,9 @@ class LibnameConan(ConanFile):
                     graphics engine, among other things."
     # topics can get used for searches, GitHub topics, Bintray tags etc. Add here keywords about the library
     topics = ("conan", "corrad", "magnum", "filesystem", "console", "environment", "os")
-    url = "https://github.com/helmesjo/conan-corrade"
+    url = "https://github.com/ulricheck/conan-corrade"
     homepage = "https://magnum.graphics/corrade"
-    author = "helmesjo <helmesjo@gmail.com>"
+    author = "ulrich eck (forked on github)"
     license = "MIT"  # Indicates license type of the packaged library; please use SPDX Identifiers https://spdx.org/licenses/
     exports = ["LICENSE.md"]
     exports_sources = ["CMakeLists.txt"]
