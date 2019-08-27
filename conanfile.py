@@ -34,7 +34,7 @@ class LibnameConan(ConanFile):
     author = "ulrich eck (forked on github)"
     license = "MIT"  # Indicates license type of the packaged library; please use SPDX Identifiers https://spdx.org/licenses/
     exports = ["LICENSE.md"]
-    exports_sources = ["CMakeLists.txt"]
+    exports_sources = ["CMakeLists.txt", "patches/*"]
     generators = "cmake"
     short_paths = True  # Some folders go out of the 260 chars path length scope (windows)
 
@@ -68,6 +68,15 @@ class LibnameConan(ConanFile):
     requires = (
     )
 
+    # temporary until release fixes interconnect issues on windows/release builds
+    scm = {
+        "type": "git",
+        "subfolder": _source_subfolder,
+        "url": "http://github.com/ulricheck/corrade.git",
+        "revision": "v%s%s" % (version, "_fixes_msvc" if tools.os_info.is_windows else ""),
+        "submodule": "recursive",
+    }
+
     def config_options(self):
         if self.settings.os == 'Windows':
             del self.options.fPIC
@@ -76,15 +85,16 @@ class LibnameConan(ConanFile):
         if self.settings.compiler == 'Visual Studio' and int(self.settings.compiler.version.value) < 14:
             raise ConanException("{} requires Visual Studio version 14 or greater".format(self.name))
 
-    def source(self):
-        source_url = "https://github.com/mosra/corrade"
-        tools.get("{0}/archive/v{1}.tar.gz".format(source_url, self.version))
-        extracted_dir = self.name + "-" + self.version
+    # def source(self):
+    #     source_url = "https://github.com/mosra/corrade"
+    #     tools.get("{0}/archive/v{1}.tar.gz".format(source_url, self.version))
+    #     extracted_dir = self.name + "-" + self.version
 
-        # Rename to "source_subfolder" is a convention to simplify later steps
-        os.rename(extracted_dir, self._source_subfolder)
+    #     # Rename to "source_subfolder" is a convention to simplify later steps
+    #     os.rename(extracted_dir, self._source_subfolder)
 
     def _configure_cmake(self):
+
         cmake = CMake(self)
 
         def add_cmake_option(option, value):
