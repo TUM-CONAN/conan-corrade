@@ -23,7 +23,7 @@ def sort_libs(correct_order, libs, lib_suffix='', reverse_result=False):
 
 class LibnameConan(ConanFile):
     name = "corrade"
-    version = "2019.01"
+    version = "2020.06"
     description =   "Corrade is a multiplatform utility library written \
                     in C++11/C++14. It's used as a base for the Magnum \
                     graphics engine, among other things."
@@ -72,8 +72,8 @@ class LibnameConan(ConanFile):
     scm = {
         "type": "git",
         "subfolder": _source_subfolder,
-        "url": "http://github.com/ulricheck/corrade.git",
-        "revision": "v%s%s" % (version, "_fixes_msvc" if tools.os_info.is_windows else ""),
+        "url": "https://github.com/mosra/corrade.git",
+        "revision": "v%s" % (version),
         "submodule": "recursive",
     }
 
