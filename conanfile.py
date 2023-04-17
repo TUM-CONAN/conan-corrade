@@ -1,9 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from conans import ConanFile, CMake, tools
-from conans.errors import ConanException
+from conan import ConanFile
+from conan.tools.cmake import CMake, CMakeToolchain, cmake_layout, CMakeDeps
+from conan.tools.scm import Git
+from conan.tools.files import load, update_conandata, copy, collect_libs
+from conan.tools.microsoft.visual import check_min_vs
 import os
+
 
 def sort_libs(correct_order, libs, lib_suffix='', reverse_result=False):
     # Add suffix for correct string matching
@@ -29,13 +33,12 @@ class LibnameConan(ConanFile):
                     graphics engine, among other things."
     # topics can get used for searches, GitHub topics, Bintray tags etc. Add here keywords about the library
     topics = ("conan", "corrad", "magnum", "filesystem", "console", "environment", "os")
-    url = "https://github.com/ulricheck/conan-corrade"
+    url = "https://github.com/TUM-CONAN/conan-corrade"
     homepage = "https://magnum.graphics/corrade"
     author = "ulrich eck (forked on github)"
     license = "MIT"  # Indicates license type of the packaged library; please use SPDX Identifiers https://spdx.org/licenses/
     exports = ["LICENSE.md"]
     exports_sources = ["CMakeLists.txt", "patches/*"]
-    generators = "cmake"
     short_paths = True  # Some folders go out of the 260 chars path length scope (windows)
 
     # Options may need to change depending on the packaged library.
@@ -50,6 +53,7 @@ class LibnameConan(ConanFile):
         "with_testsuite": [True, False],
         "with_utility": [True, False],
     }
+
     default_options = {
         "shared": False, 
         "fPIC": True,
@@ -61,47 +65,36 @@ class LibnameConan(ConanFile):
         "with_utility": True,
     }
 
-    # Custom attributes for Bincrafters recipe conventions
-    _source_subfolder = "source_subfolder"
-    _build_subfolder = "build_subfolder"
-
-    requires = (
-    )
-
-    # temporary until release fixes interconnect issues on windows/release builds
-    scm = {
-        "type": "git",
-        "subfolder": _source_subfolder,
-        "url": "https://github.com/mosra/corrade.git",
-        "revision": "v%s" % (version),
-        "submodule": "recursive",
-    }
-
     def config_options(self):
         if self.settings.os == 'Windows':
             del self.options.fPIC
 
-    def configure(self):
-        if self.settings.compiler == 'Visual Studio' and int(self.settings.compiler.version.value) < 14:
-            raise ConanException("{} requires Visual Studio version 14 or greater".format(self.name))
+    def validate(self):
+        if self.settings.os == "Windows":
+            check_min_vs(self, "141")
 
-    # def source(self):
-    #     source_url = "https://github.com/mosra/corrade"
-    #     tools.get("{0}/archive/v{1}.tar.gz".format(source_url, self.version))
-    #     extracted_dir = self.name + "-" + self.version
+    def export(self):
+        update_conandata(self, {"sources": {
+            "commit": "v{}".format(self.version), 
+            "url": "https://github.com/mosra/corrade.git"
+            }}
+            )
 
-    #     # Rename to "source_subfolder" is a convention to simplify later steps
-    #     os.rename(extracted_dir, self._source_subfolder)
+    def source(self):
+        git = Git(self)
+        sources = self.conan_data["sources"]
+        git.clone(url=sources["url"], target=self.source_folder)
+        git.checkout(commit=sources["commit"])
 
-    def _configure_cmake(self):
 
-        cmake = CMake(self)
+    def generate(self):
+        tc = CMakeToolchain(self)
 
         def add_cmake_option(option, value):
             var_name = "{}".format(option).upper()
             value_str = "{}".format(value)
             var_value = "ON" if value_str == 'True' else "OFF" if value_str == 'False' else value_str 
-            cmake.definitions[var_name] = var_value
+            tc.variables[var_name] = var_value
 
         for option, value in self.options.items():
             add_cmake_option(option, value)
@@ -111,25 +104,29 @@ class LibnameConan(ConanFile):
         add_cmake_option("LIB_SUFFIX", "")
 
         add_cmake_option("BUILD_STATIC", not self.options.shared)
-
-        if self.settings.compiler == 'Visual Studio':
+        if self.settings.compiler == 'msvc':
             add_cmake_option("MSVC2015_COMPATIBILITY", int(self.settings.compiler.version.value) == 14)
             add_cmake_option("MSVC2017_COMPATIBILITY", int(self.settings.compiler.version.value) == 17)
         
         if self.settings.compiler == 'gcc':
             add_cmake_option("GCC47_COMPATIBILITY", float(self.settings.compiler.version.value) < 4.8)
 
-        cmake.configure(build_folder=self._build_subfolder)
+        tc.generate()
 
-        return cmake
+        deps = CMakeDeps(self)
+        deps.generate()
+
+    def layout(self):
+        cmake_layout(self, src_folder="source_subfolder")
 
     def build(self):
-        cmake = self._configure_cmake()
+        cmake = CMake(self)
+        cmake.configure()
         cmake.build()
 
     def package(self):
-        self.copy(pattern="LICENSE", dst="licenses", src=self._source_subfolder)
-        cmake = self._configure_cmake()
+        copy(self, pattern="LICENSE", dst="licenses", src=self.source_folder)
+        cmake = CMake(self)
         cmake.install()
 
     def package_info(self):
@@ -146,5 +143,5 @@ class LibnameConan(ConanFile):
 
         # Sort all built libs according to above, and reverse result for correct link order
         suffix = '-d' if self.settings.build_type == "Debug" else ''
-        builtLibs = tools.collect_libs(self)
+        builtLibs = collect_libs(self)
         self.cpp_info.libs = sort_libs(correct_order=allLibs, libs=builtLibs, lib_suffix=suffix, reverse_result=True)

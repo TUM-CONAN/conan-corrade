@@ -44,3 +44,4 @@ tmp/
 .ropeproject/*
 ## emacs
 *~
+test_package/CMakeUserPresets.json
