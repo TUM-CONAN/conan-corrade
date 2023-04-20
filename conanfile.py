@@ -25,21 +25,20 @@ def sort_libs(correct_order, libs, lib_suffix='', reverse_result=False):
 
     return result
 
+
 class LibnameConan(ConanFile):
     name = "corrade"
     version = "2020.06"
     description =   "Corrade is a multiplatform utility library written \
                     in C++11/C++14. It's used as a base for the Magnum \
                     graphics engine, among other things."
-    # topics can get used for searches, GitHub topics, Bintray tags etc. Add here keywords about the library
     topics = ("conan", "corrad", "magnum", "filesystem", "console", "environment", "os")
     url = "https://github.com/TUM-CONAN/conan-corrade"
     homepage = "https://magnum.graphics/corrade"
     author = "ulrich eck (forked on github)"
-    license = "MIT"  # Indicates license type of the packaged library; please use SPDX Identifiers https://spdx.org/licenses/
+    license = "MIT"
     exports = ["LICENSE.md"]
     exports_sources = ["CMakeLists.txt", "patches/*"]
-    short_paths = True  # Some folders go out of the 260 chars path length scope (windows)
 
     # Options may need to change depending on the packaged library.
     settings = "os", "arch", "compiler", "build_type"
@@ -47,6 +46,7 @@ class LibnameConan(ConanFile):
         "shared": [True, False], 
         "fPIC": [True, False],
         "build_deprecated": [True, False],
+        "build_multithreaded": [True, False],
         "with_interconnect": [True, False],
         "with_pluginmanager": [True, False],
         "with_rc": [True, False],
@@ -58,6 +58,7 @@ class LibnameConan(ConanFile):
         "shared": False, 
         "fPIC": True,
         "build_deprecated": True,
+        "build_multithreaded": True,
         "with_interconnect": True,
         "with_pluginmanager": True,
         "with_rc": True,
@@ -85,7 +86,6 @@ class LibnameConan(ConanFile):
         sources = self.conan_data["sources"]
         git.clone(url=sources["url"], target=self.source_folder)
         git.checkout(commit=sources["commit"])
-
 
     def generate(self):
         tc = CMakeToolchain(self)
@@ -128,10 +128,11 @@ class LibnameConan(ConanFile):
         copy(self, pattern="LICENSE", dst="licenses", src=self.source_folder)
         cmake = CMake(self)
         cmake.install()
+        self.output.info("XXX Corrade_ROOT: {}".format(self.package_folder))
 
     def package_info(self):
         # See dependency order here: https://doc.magnum.graphics/magnum/custom-buildsystems.html
-        allLibs = [
+        all_libs = [
             #1
             "CorradeUtility",
             "CorradeContainers",
@@ -143,5 +144,5 @@ class LibnameConan(ConanFile):
 
         # Sort all built libs according to above, and reverse result for correct link order
         suffix = '-d' if self.settings.build_type == "Debug" else ''
-        builtLibs = collect_libs(self)
-        self.cpp_info.libs = sort_libs(correct_order=allLibs, libs=builtLibs, lib_suffix=suffix, reverse_result=True)
+        built_libs = collect_libs(self)
+        self.cpp_info.libs = sort_libs(correct_order=all_libs, libs=built_libs, lib_suffix=suffix, reverse_result=True)
