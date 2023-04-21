@@ -20,7 +20,6 @@ class TestPackageConan(ConanFile):
     def generate(self):
         tc = CMakeToolchain(self)
         corrade_root = self.dependencies["corrade"].package_folder
-        self.output.info("Corrade_root: {}".format(corrade_root))
         tc.variables["Corrade_ROOT"] = corrade_root
         tc.generate()
 
