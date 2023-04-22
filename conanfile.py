@@ -29,10 +29,10 @@ def sort_libs(correct_order, libs, lib_suffix='', reverse_result=False):
 class LibnameConan(ConanFile):
     name = "corrade"
     version = "2020.06"
-    description =   "Corrade is a multiplatform utility library written \
+    description = "Corrade is a multiplatform utility library written \
                     in C++11/C++14. It's used as a base for the Magnum \
                     graphics engine, among other things."
-    topics = ("conan", "corrad", "magnum", "filesystem", "console", "environment", "os")
+    topics = ("conan", "corrade", "magnum", "filesystem", "console", "environment", "os")
     url = "https://github.com/TUM-CONAN/conan-corrade"
     homepage = "https://magnum.graphics/corrade"
     author = "ulrich eck (forked on github)"
@@ -128,7 +128,6 @@ class LibnameConan(ConanFile):
         copy(self, pattern="LICENSE", dst="licenses", src=self.source_folder)
         cmake = CMake(self)
         cmake.install()
-        self.output.info("XXX Corrade_ROOT: {}".format(self.package_folder))
 
     def package_info(self):
         # See dependency order here: https://doc.magnum.graphics/magnum/custom-buildsystems.html
