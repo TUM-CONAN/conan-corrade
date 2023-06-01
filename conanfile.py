@@ -4,9 +4,11 @@
 from conan import ConanFile
 from conan.tools.cmake import CMake, CMakeToolchain, cmake_layout, CMakeDeps
 from conan.tools.scm import Git
-from conan.tools.files import load, update_conandata, copy, collect_libs
+from conan.tools.files import load, save, update_conandata, copy, collect_libs
 from conan.tools.microsoft.visual import check_min_vs
+
 import os
+import textwrap
 
 
 def sort_libs(correct_order, libs, lib_suffix='', reverse_result=False):
@@ -129,19 +131,159 @@ class LibnameConan(ConanFile):
         cmake = CMake(self)
         cmake.install()
 
+
+    def _register_component(self, component):
+        name = component["name"]
+        self.cpp_info.components[name].set_property("cmake_target_name", f"Corrade::{name}")
+        self.cpp_info.components[name].builddirs.append(self._cmake_folder)
+        self.cpp_info.components[name].set_property("pkg_config_name", name)
+        self.cpp_info.components[name].libs = [component["lib"]] if component['lib'] is not None else []
+        self.cpp_info.components[name].requires = component["requires"]
+
+    @property
+    def _cmake_entry_point_file(self):
+        return os.path.join("share", "cmake", "Corrade", "conan_corrade_entry_point.cmake")
+
+    @property
+    def _cmake_folder(self):
+        return os.path.join('share', 'cmake', 'Corrade')
+
     def package_info(self):
-        # See dependency order here: https://doc.magnum.graphics/magnum/custom-buildsystems.html
-        all_libs = [
-            #1
-            "CorradeUtility",
-            "CorradeContainers",
-            #2
-            "CorradeInterconnect",
-            "CorradePluginManager",
-            "CorradeTestSuite",
+
+        contents = textwrap.dedent(f"""\
+        set(CORRADE_INCLUDE_DIR "${{CMAKE_CURRENT_LIST_DIR}}/../../../include")
+        set(CORRADE_MODULE_DIR "${{CMAKE_CURRENT_LIST_DIR}}")
+
+        message(STATUS "Corrade include: ${{CORRADE_INCLUDE_DIR}}")
+        message(STATUS "Corrade module: ${{CORRADE_MODULE_DIR}}")
+
+        # Configuration file
+        find_file(_CORRADE_CONFIGURE_FILE configure.h
+            HINTS ${{CORRADE_INCLUDE_DIR}}/Corrade/)
+
+        # Read flags from configuration
+        file(READ ${{_CORRADE_CONFIGURE_FILE}} _corradeConfigure)
+        string(REGEX REPLACE ";" "\\\\\\\\;" _corradeConfigure "${{_corradeConfigure}}")
+        string(REGEX REPLACE "\\n" ";" _corradeConfigure "${{_corradeConfigure}}")
+        set(_corradeFlags
+            MSVC2015_COMPATIBILITY
+            MSVC2017_COMPATIBILITY
+            MSVC_COMPATIBILITY
+            BUILD_DEPRECATED
+            BUILD_STATIC
+            BUILD_STATIC_UNIQUE_GLOBALS
+            BUILD_MULTITHREADED
+            BUILD_CPU_RUNTIME_DISPATCH
+            TARGET_UNIX
+            TARGET_APPLE
+            TARGET_IOS
+            TARGET_IOS_SIMULATOR
+            TARGET_WINDOWS
+            TARGET_WINDOWS_RT
+            TARGET_EMSCRIPTEN
+            TARGET_ANDROID
+            # TARGET_X86 etc, TARGET_32BIT, TARGET_BIG_ENDIAN and TARGET_LIBCXX etc.
+            # are not exposed to CMake as the meaning is unclear on platforms with
+            # multi-arch binaries or when mixing different STL implementations.
+            # TARGET_GCC etc are figured out via UseCorrade.cmake, as the compiler can
+            # be different when compiling the lib & when using it.
+            CPU_USE_IFUNC
+            PLUGINMANAGER_NO_DYNAMIC_PLUGIN_SUPPORT
+            TESTSUITE_TARGET_XCTEST
+            UTILITY_USE_ANSI_COLORS)
+        foreach(_corradeFlag ${{_corradeFlags}})
+            list(FIND _corradeConfigure "#define CORRADE_${{_corradeFlag}}" _corrade_${{_corradeFlag}})
+            if(NOT _corrade_${{_corradeFlag}} EQUAL -1)
+                set(CORRADE_${{_corradeFlag}} 1)
+            endif()
+        endforeach()
+
+        set(CORRADE_USE_MODULE ${{_CORRADE_MODULE_DIR}}/UseCorrade.cmake)
+        set(CORRADE_LIB_SUFFIX_MODULE ${{_CORRADE_MODULE_DIR}}/CorradeLibSuffix.cmake)
+
+        # find corrade-rc
+        if (NOT TARGET Corrade::rc)
+          add_executable(Corrade::rc IMPORTED)
+        endif()
+
+        find_program(CORRADE_rc_EXECUTABLE corrade-rc HINTS ${{CMAKE_CURRENT_LIST_DIR}}/../../../bin)
+
+        if(CORRADE_rc_EXECUTABLE)
+            set_property(TARGET Corrade::rc PROPERTY
+                IMPORTED_LOCATION ${{CORRADE_rc_EXECUTABLE}})
+        endif()
+
+
+        #Fixes for Interconnect
+
+        # Disable /OPT:ICF on MSVC, which merges functions with identical
+        # contents and thus breaks signal comparison
+        if(CORRADE_TARGET_WINDOWS AND CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+            if(CMAKE_VERSION VERSION_LESS 3.13)
+                set_property(TARGET Corrade::Interconnect PROPERTY
+                    INTERFACE_LINK_LIBRARIES "-OPT:NOICF,REF")
+            else()
+                set_property(TARGET Corrade::Interconnect PROPERTY
+                    INTERFACE_LINK_OPTIONS "/OPT:NOICF,REF")
+            endif()
+        endif()
+
+        # Fixes for Utility
+
+        # Top-level include directory
+        set_property(TARGET Corrade::Utility APPEND PROPERTY
+            INTERFACE_INCLUDE_DIRECTORIES ${{CORRADE_INCLUDE_DIR}})
+
+        # Require (at least) C++11 for users
+        set_property(TARGET Corrade::Utility PROPERTY
+            INTERFACE_CORRADE_CXX_STANDARD 11)
+        set_property(TARGET Corrade::Utility APPEND PROPERTY
+            COMPATIBLE_INTERFACE_NUMBER_MAX CORRADE_CXX_STANDARD)
+
+        # Path::libraryLocation() needs this
+        if(CORRADE_TARGET_UNIX)
+            set_property(TARGET Corrade::Utility APPEND PROPERTY
+                INTERFACE_LINK_LIBRARIES ${{CMAKE_DL_LIBS}})
+        endif()
+        # AndroidLogStreamBuffer class needs to be linked to log library
+        if(CORRADE_TARGET_ANDROID)
+            set_property(TARGET Corrade::Utility APPEND PROPERTY
+                INTERFACE_LINK_LIBRARIES "log")
+        endif()
+        """)
+
+        corradeentry = os.path.join(self.package_folder, self._cmake_entry_point_file)
+        save(self, corradeentry, contents)
+
+
+        self.cpp_info.set_property("cmake_file_name", "Corrade")
+        corrademacros = os.path.join(self._cmake_folder, 'UseCorrade.cmake')
+        self.cpp_info.set_property("cmake_build_modules", [corradeentry, corrademacros])
+
+        components = [
+            {"name": "Utility", "lib": "CorradeUtility", "requires": []},
+            {"name": "Containers", "lib": None, "requires": ["Utility"]},
+            {"name": "Interconnect", "lib": "CorradeInterconnect", "requires": ["Utility"]},
+            {"name": "PluginManager", "lib": "CorradePluginManager", "requires": ["Utility"]},
+            {"name": "TestSuite", "lib": "CorradeTestSuite", "requires": ["Utility"]},
         ]
 
-        # Sort all built libs according to above, and reverse result for correct link order
-        suffix = '-d' if self.settings.build_type == "Debug" else ''
-        built_libs = collect_libs(self)
-        self.cpp_info.libs = sort_libs(correct_order=all_libs, libs=built_libs, lib_suffix=suffix, reverse_result=True)
+        for component in components:
+            self._register_component(component)
+
+
+        # # See dependency order here: https://doc.magnum.graphics/magnum/custom-buildsystems.html
+        # all_libs = [
+        #     #1
+        #     "CorradeUtility",
+        #     "CorradeContainers",
+        #     #2
+        #     "CorradeInterconnect",
+        #     "CorradePluginManager",
+        #     "CorradeTestSuite",
+        # ]
+
+        # # Sort all built libs according to above, and reverse result for correct link order
+        # suffix = '-d' if self.settings.build_type == "Debug" else ''
+        # built_libs = collect_libs(self)
+        # self.cpp_info.libs = sort_libs(correct_order=all_libs, libs=built_libs, lib_suffix=suffix, reverse_result=True)
