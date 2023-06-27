@@ -260,12 +260,14 @@ class LibnameConan(ConanFile):
         corrademacros = os.path.join(self._cmake_folder, 'UseCorrade.cmake')
         self.cpp_info.set_property("cmake_build_modules", [corradeentry, corrademacros])
 
+        suffix = '-d' if self.settings.build_type == "Debug" else ''
+
         components = [
-            {"name": "Utility", "lib": "CorradeUtility", "requires": []},
+            {"name": "Utility", "lib": "CorradeUtility" + suffix, "requires": []},
             {"name": "Containers", "lib": None, "requires": ["Utility"]},
-            {"name": "Interconnect", "lib": "CorradeInterconnect", "requires": ["Utility"]},
-            {"name": "PluginManager", "lib": "CorradePluginManager", "requires": ["Utility"]},
-            {"name": "TestSuite", "lib": "CorradeTestSuite", "requires": ["Utility"]},
+            {"name": "Interconnect", "lib": "CorradeInterconnect" + suffix, "requires": ["Utility"]},
+            {"name": "PluginManager", "lib": "CorradePluginManager" + suffix, "requires": ["Utility"]},
+            {"name": "TestSuite", "lib": "CorradeTestSuite" + suffix, "requires": ["Utility"]},
         ]
 
         for component in components:
