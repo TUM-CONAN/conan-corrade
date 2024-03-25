@@ -5,7 +5,7 @@ from conan import ConanFile
 from conan.tools.cmake import CMake, CMakeToolchain, cmake_layout, CMakeDeps
 from conan.tools.scm import Git
 from conan.tools.files import load, save, update_conandata, copy, collect_libs
-from conan.tools.microsoft.visual import check_min_vs
+from conan.tools.microsoft.visual import is_msvc, check_min_vs
 
 import os
 import textwrap
@@ -106,9 +106,14 @@ class LibnameConan(ConanFile):
         add_cmake_option("LIB_SUFFIX", "")
 
         add_cmake_option("BUILD_STATIC", not self.options.shared)
-        if self.settings.compiler == 'msvc':
-            add_cmake_option("MSVC2015_COMPATIBILITY", int(self.settings.compiler.version.value) == 14)
-            add_cmake_option("MSVC2017_COMPATIBILITY", int(self.settings.compiler.version.value) == 17)
+
+        if is_msvc(self):
+            if check_min_vs(self, 193, raise_invalid=False):
+                tc.variables["MSVC2019_COMPATIBILITY"] = True
+            elif check_min_vs(self, 192, raise_invalid=False):
+                tc.variables["MSVC2017_COMPATIBILITY"] = True
+            elif check_min_vs(self, 191, raise_invalid=False):
+                tc.variables["MSVC2015_COMPATIBILITY"] = True
         
         if self.settings.compiler == 'gcc':
             add_cmake_option("GCC47_COMPATIBILITY", float(self.settings.compiler.version.value) < 4.8)
