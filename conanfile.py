@@ -156,6 +156,7 @@ class LibnameConan(ConanFile):
     def package_info(self):
 
         contents = textwrap.dedent(f"""\
+        message(STATUS "Corrade Conan Directory: ${{CMAKE_CURRENT_LIST_DIR}}")
         set(CORRADE_INCLUDE_DIR "${{CMAKE_CURRENT_LIST_DIR}}/../../../include")
         set(CORRADE_MODULE_DIR "${{CMAKE_CURRENT_LIST_DIR}}")
 
