@@ -108,6 +108,8 @@ class LibnameConan(ConanFile):
         add_cmake_option("BUILD_STATIC", not self.options.shared)
 
         if is_msvc(self):
+            if check_min_vs(self, 194, raise_invalid=False):
+                tc.variables["MSVC2022_COMPATIBILITY"] = True
             if check_min_vs(self, 193, raise_invalid=False):
                 tc.variables["MSVC2019_COMPATIBILITY"] = True
             elif check_min_vs(self, 192, raise_invalid=False):
@@ -174,6 +176,8 @@ class LibnameConan(ConanFile):
         set(_corradeFlags
             MSVC2015_COMPATIBILITY
             MSVC2017_COMPATIBILITY
+            MSVC2019_COMPATIBILITY
+            MSVC2022_COMPATIBILITY
             MSVC_COMPATIBILITY
             BUILD_DEPRECATED
             BUILD_STATIC
