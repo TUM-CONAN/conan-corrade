@@ -30,7 +30,7 @@ def sort_libs(correct_order, libs, lib_suffix='', reverse_result=False):
 
 class LibnameConan(ConanFile):
     name = "corrade"
-    version = "2020.06"
+    version = "202x-dev"
     description = "Corrade is a multiplatform utility library written \
                     in C++11/C++14. It's used as a base for the Magnum \
                     graphics engine, among other things."
@@ -78,7 +78,8 @@ class LibnameConan(ConanFile):
 
     def export(self):
         update_conandata(self, {"sources": {
-            "commit": "v{}".format(self.version), 
+            #"commit": "v{}".format(self.version), 
+            "commit": "master",
             "url": "https://github.com/mosra/corrade.git"
             }}
             )
@@ -95,8 +96,12 @@ class LibnameConan(ConanFile):
         def add_cmake_option(option, value):
             var_name = "{}".format(option).upper()
             value_str = "{}".format(value)
-            var_value = "ON" if value_str == 'True' else "OFF" if value_str == 'False' else value_str 
-            tc.variables[var_name] = var_value
+            var_value = "ON" if value_str == 'True' else "OFF" if value_str == 'False' else value_str
+            # all corrade specific cmake properties are now prefixed with CORRADE_
+            if var_name in ["SHARED", "FPIC"]:
+                tc.variables[var_name] = var_value
+            else:
+                tc.variables[f"CORRADE_{var_name}"] = var_value
 
         for option, value in self.options.items():
             add_cmake_option(option, value)
@@ -109,16 +114,16 @@ class LibnameConan(ConanFile):
 
         if is_msvc(self):
             if check_min_vs(self, 194, raise_invalid=False):
-                tc.variables["MSVC2022_COMPATIBILITY"] = True
-            if check_min_vs(self, 193, raise_invalid=False):
-                tc.variables["MSVC2019_COMPATIBILITY"] = True
+                tc.variables["CORRADE_MSVC2022_COMPATIBILITY"] = True
+            elif check_min_vs(self, 193, raise_invalid=False):
+                tc.variables["CORRADE_MSVC2019_COMPATIBILITY"] = True
             elif check_min_vs(self, 192, raise_invalid=False):
-                tc.variables["MSVC2017_COMPATIBILITY"] = True
+                tc.variables["CORRADE_MSVC2017_COMPATIBILITY"] = True
             elif check_min_vs(self, 191, raise_invalid=False):
                 tc.variables["MSVC2015_COMPATIBILITY"] = True
         
         if self.settings.compiler == 'gcc':
-            add_cmake_option("GCC47_COMPATIBILITY", float(self.settings.compiler.version.value) < 4.8)
+            add_cmake_option("CORRADE_GCC47_COMPATIBILITY", float(self.settings.compiler.version.value) < 4.8)
 
         tc.generate()
 
@@ -174,33 +179,33 @@ class LibnameConan(ConanFile):
         string(REGEX REPLACE ";" "\\\\\\\\;" _corradeConfigure "${{_corradeConfigure}}")
         string(REGEX REPLACE "\\n" ";" _corradeConfigure "${{_corradeConfigure}}")
         set(_corradeFlags
-            MSVC2015_COMPATIBILITY
-            MSVC2017_COMPATIBILITY
-            MSVC2019_COMPATIBILITY
-            MSVC2022_COMPATIBILITY
-            MSVC_COMPATIBILITY
-            BUILD_DEPRECATED
-            BUILD_STATIC
-            BUILD_STATIC_UNIQUE_GLOBALS
-            BUILD_MULTITHREADED
-            BUILD_CPU_RUNTIME_DISPATCH
-            TARGET_UNIX
-            TARGET_APPLE
-            TARGET_IOS
-            TARGET_IOS_SIMULATOR
-            TARGET_WINDOWS
-            TARGET_WINDOWS_RT
-            TARGET_EMSCRIPTEN
-            TARGET_ANDROID
-            # TARGET_X86 etc, TARGET_32BIT, TARGET_BIG_ENDIAN and TARGET_LIBCXX etc.
-            # are not exposed to CMake as the meaning is unclear on platforms with
+           CORRADE_MSVC2015_COMPATIBILITY
+           CORRADE_MSVC2017_COMPATIBILITY
+           CORRADE_MSVC2019_COMPATIBILITY
+           CORRADE_MSVC2022_COMPATIBILITY
+           CORRADE_MSVC_COMPATIBILITY
+           CORRADE_BUILD_DEPRECATED
+           CORRADE_BUILD_STATIC
+           CORRADE_BUILD_STATIC_UNIQUE_GLOBALS
+           CORRADE_BUILD_MULTITHREADED
+           CORRADE_BUILD_CPU_RUNTIME_DISPATCH
+           CORRADE_TARGET_UNIX
+           CORRADE_TARGET_APPLE
+           CORRADE_TARGET_IOS
+           CORRADE_TARGET_IOS_SIMULATOR
+           CORRADE_TARGET_WINDOWS
+           CORRADE_TARGET_WINDOWS_RT
+           CORRADE_TARGET_EMSCRIPTEN
+           CORRADE_TARGET_ANDROID
+           # TARGET_X86 etc, TARGET_32BIT, TARGET_BIG_ENDIAN and TARGET_LIBCXX etc.
+           # are not exposed to CMake as the meaning is unclear on platforms with
             # multi-arch binaries or when mixing different STL implementations.
             # TARGET_GCC etc are figured out via UseCorrade.cmake, as the compiler can
             # be different when compiling the lib & when using it.
-            CPU_USE_IFUNC
-            PLUGINMANAGER_NO_DYNAMIC_PLUGIN_SUPPORT
-            TESTSUITE_TARGET_XCTEST
-            UTILITY_USE_ANSI_COLORS)
+            CORRADE_CPU_USE_IFUNC
+            CORRADE_PLUGINMANAGER_NO_DYNAMIC_PLUGIN_SUPPORT
+            CORRADE_TESTSUITE_TARGET_XCTEST
+            CORRADE_UTILITY_USE_ANSI_COLORS)
         foreach(_corradeFlag ${{_corradeFlags}})
             list(FIND _corradeConfigure "#define CORRADE_${{_corradeFlag}}" _corrade_${{_corradeFlag}})
             if(NOT _corrade_${{_corradeFlag}} EQUAL -1)
