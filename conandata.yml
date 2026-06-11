@@ -1,0 +1,4 @@
+sources:
+  "2026.dev":
+    url: "https://github.com/mosra/corrade.git"
+    commit: "120098ebf53487678e352edaa00993956f4c9f06"
