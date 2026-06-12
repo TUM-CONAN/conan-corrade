@@ -192,6 +192,12 @@ class CorradeConan(ConanFile):
     def package_info(self):
         self.cpp_info.set_property("cmake_find_mode", "none")
         self.cpp_info.set_property("cmake_file_name", "Corrade")
+        # The native CorradeConfig provides component targets (Corrade::Utility,
+        # Corrade::PluginManager, ...) but no "Corrade::Corrade" aggregate. Map the
+        # package-level target to the universal core component so consumers'
+        # generated DEPS_TARGETs reference an existing target (other components are
+        # pulled transitively via the shared libs / consumers' own find_package).
+        self.cpp_info.set_property("cmake_target_name", "Corrade::Utility")
         self.cpp_info.builddirs = [os.path.join("share", "cmake", "Corrade")]
         self.cpp_info.includedirs = ["include"]
         self.cpp_info.libs = collect_libs(self)
